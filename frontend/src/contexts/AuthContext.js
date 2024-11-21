@@ -58,8 +58,9 @@ export const AuthProvider = ({ children }) => {
         },
       });
 
-      const { access_token } = response.data;
+      const { access_token, username: loggedInUsername } = response.data;
       localStorage.setItem('token', access_token);
+      localStorage.setItem('username', loggedInUsername);
       
       await fetchUserProfile(access_token);
       navigate('/');
@@ -83,8 +84,8 @@ export const AuthProvider = ({ children }) => {
         },
       });
 
-      // After successful registration, automatically log in
-      await login(userData.email, userData.password);
+      // After successful registration, log in with username
+      await login(userData.username, userData.password);
       return response.data;
     } catch (error) {
       console.error('Registration error:', error);
@@ -94,6 +95,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('username');
     setUser(null);
     navigate('/login');
   };

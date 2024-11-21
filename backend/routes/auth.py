@@ -24,13 +24,20 @@ async def register(
         logger.info(f"Attempting to register user with email: {email}")
         
         # Check if user already exists
-        existing_user = await db.users.find_one({"email": email})
+        existing_user = await db.users.find_one({"$or": [{"email": email}, {"username": username}]})
         if existing_user:
-            logger.warning(f"User with email {email} already exists")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
+            if existing_user["email"] == email:
+                logger.warning(f"User with email {email} already exists")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+            else:
+                logger.warning(f"Username {username} already exists")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Username already taken"
+                )
 
         # Hash the password
         hashed_password = pwd_context.hash(password)
@@ -55,7 +62,7 @@ async def register(
             data={"sub": email}
         )
         
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer", "username": username}
         
     except Exception as e:
         logger.error(f"Error during registration: {str(e)}")
@@ -70,12 +77,19 @@ async def login(
     db = Depends(get_db)
 ):
     try:
-        logger.info(f"Login attempt for username: {form_data.username}")
+        username_or_email = form_data.username
+        logger.info(f"Login attempt for: {username_or_email}")
         
-        # Find user by username
-        user = await db.users.find_one({"username": form_data.username})
+        # Find user by username or email
+        user = await db.users.find_one({
+            "$or": [
+                {"username": username_or_email},
+                {"email": username_or_email}
+            ]
+        })
+        
         if not user:
-            logger.warning(f"User {form_data.username} not found")
+            logger.warning(f"User {username_or_email} not found")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
@@ -84,7 +98,7 @@ async def login(
         
         # Verify password
         if not pwd_context.verify(form_data.password, user["password"]):
-            logger.warning(f"Invalid password for user {form_data.username}")
+            logger.warning(f"Invalid password for user {username_or_email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
@@ -96,8 +110,12 @@ async def login(
             data={"sub": user["email"]}
         )
         
-        logger.info(f"Login successful for user {form_data.username}")
-        return {"access_token": access_token, "token_type": "bearer"}
+        logger.info(f"Login successful for user {username_or_email}")
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "username": user["username"]
+        }
         
     except HTTPException:
         raise
@@ -108,7 +126,7 @@ async def login(
             detail=str(e)
         )
 
-@router.get("/me")
+@router.get("/profile")
 async def get_current_user_profile(current_user: dict = Depends(get_current_user)):
     # Remove sensitive information
     user_data = {
