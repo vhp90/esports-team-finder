@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.teams import router as teams_router
 from routes.auth import router as auth_router
 from dependencies import get_db
+import os
 import logging
 
 # Configure logging
@@ -14,7 +15,9 @@ app = FastAPI()
 # CORS configuration
 origins = [
     "http://localhost:3000",  # React development server
-    "https://your-production-frontend-url.com",  # Replace with your production frontend URL
+    "https://esports-team-finder.onrender.com",  # Production frontend
+    "https://esports-team-finder-frontend.onrender.com",  # Alternative production frontend
+    "https://esports-team-finder-static.onrender.com"  # Another possible frontend URL
 ]
 
 app.add_middleware(

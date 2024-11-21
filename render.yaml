@@ -16,7 +16,7 @@ services:
         value: https://esports-team-finder.onrender.com
 
   # Frontend service
-  - type: web
+  - type: static
     name: esports-team-finder-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
