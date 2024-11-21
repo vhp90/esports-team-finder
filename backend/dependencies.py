@@ -7,25 +7,38 @@ from jose import JWTError, jwt
 import os
 from dotenv import load_dotenv
 import logging
-
-# Load environment variables
-load_dotenv()
+from urllib.parse import urlparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load environment variables
+load_dotenv()
+
 # MongoDB configuration
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/esports_team_finder")
-client = AsyncIOMotorClient(MONGODB_URL)
-# Extract database name from URL or use default
-db_name = MONGODB_URL.split('/')[-1].split('?')[0] if '/' in MONGODB_URL else 'esports_team_finder'
-db = client[db_name]
+MONGODB_URL = os.getenv("MONGODB_URL")
+if not MONGODB_URL:
+    raise ValueError("MONGODB_URL environment variable is not set")
+
+try:
+    client = AsyncIOMotorClient(MONGODB_URL)
+    # Parse database name from MongoDB URL
+    parsed_url = urlparse(MONGODB_URL)
+    db_name = parsed_url.path.strip('/') or 'esports_team_finder'
+    db = client[db_name]
+    logger.info(f"Connected to MongoDB database: {db_name}")
+except Exception as e:
+    logger.error(f"Failed to connect to MongoDB: {str(e)}")
+    raise
 
 # Authentication configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    raise ValueError("JWT_SECRET environment variable is not set")
+
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -48,14 +61,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-        
-    user = await db.users.find_one({"email": email})
+    
+    user = await db.users.find_one({"_id": user_id})
     if user is None:
         raise credentials_exception
-        
     return user

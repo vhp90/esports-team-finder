@@ -5,6 +5,10 @@ from routes.auth import router as auth_router
 from dependencies import get_db
 import os
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,16 +17,18 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # CORS configuration
-origins = [
-    "http://localhost:3000",  # React development server
-    "https://esports-team-finder.onrender.com",  # Production frontend
-    "https://esports-team-finder-frontend.onrender.com",  # Alternative production frontend
-    "https://esports-team-finder-static.onrender.com"  # Another possible frontend URL
-]
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",")
+if not CORS_ORIGINS or CORS_ORIGINS == [""]:
+    CORS_ORIGINS = [
+        "http://localhost:3000",  # React development server
+        "http://localhost:5173",  # Vite development server
+    ]
+
+logger.info(f"Configured CORS origins: {CORS_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,4 +54,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
