@@ -9,6 +9,7 @@ import {
   Text,
   useToast,
   Select,
+  FormHelperText,
 } from '@chakra-ui/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -45,12 +46,13 @@ const Register = () => {
       
       toast({
         title: 'Registration successful',
+        description: 'You have been automatically logged in',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
-      // Navigate to profile page after successful registration
-      navigate('/profile');
+      
+      navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
       console.error('Error response:', error.response);
@@ -87,7 +89,11 @@ const Register = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              isDisabled={isLoading}
             />
+            <FormHelperText>
+              Choose a unique username for your account
+            </FormHelperText>
           </FormControl>
           <FormControl isRequired>
             <FormLabel>Email</FormLabel>
@@ -96,7 +102,11 @@ const Register = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
+              isDisabled={isLoading}
             />
+            <FormHelperText>
+              We'll never share your email with anyone else
+            </FormHelperText>
           </FormControl>
           <FormControl isRequired>
             <FormLabel>Password</FormLabel>
@@ -105,7 +115,11 @@ const Register = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
+              isDisabled={isLoading}
             />
+            <FormHelperText>
+              Choose a strong password with at least 8 characters
+            </FormHelperText>
           </FormControl>
           <FormControl isRequired>
             <FormLabel>Games</FormLabel>
@@ -113,8 +127,12 @@ const Register = () => {
               name="games"
               value={formData.games}
               onChange={handleChange}
+              isDisabled={isLoading}
               placeholder="e.g., League of Legends, CSGO"
             />
+            <FormHelperText>
+              Enter the games you play, separated by commas
+            </FormHelperText>
           </FormControl>
           <FormControl isRequired>
             <FormLabel>Skill Level</FormLabel>
@@ -122,12 +140,16 @@ const Register = () => {
               name="skill_level"
               value={formData.skill_level}
               onChange={handleChange}
+              isDisabled={isLoading}
             >
               <option value="beginner">Beginner</option>
               <option value="intermediate">Intermediate</option>
               <option value="advanced">Advanced</option>
               <option value="professional">Professional</option>
             </Select>
+            <FormHelperText>
+              Select your overall skill level in gaming
+            </FormHelperText>
           </FormControl>
           <FormControl isRequired>
             <FormLabel>Play Style</FormLabel>
@@ -135,14 +157,19 @@ const Register = () => {
               name="play_style"
               value={formData.play_style}
               onChange={handleChange}
+              isDisabled={isLoading}
               placeholder="e.g., Aggressive, Defensive, Support"
             />
+            <FormHelperText>
+              Describe your preferred play style
+            </FormHelperText>
           </FormControl>
           <Button
             type="submit"
             colorScheme="blue"
             width="full"
             isLoading={isLoading}
+            loadingText="Registering..."
           >
             Register
           </Button>

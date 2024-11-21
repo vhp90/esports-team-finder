@@ -27,13 +27,12 @@ export const AuthProvider = ({ children }) => {
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         setUser(null);
-        navigate('/login');
       }
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -46,56 +45,60 @@ export const AuthProvider = ({ children }) => {
     }
   }, [fetchUserProfile]);
 
-  const login = async (username, password) => {
+  const login = async (usernameOrEmail, password) => {
     try {
+      console.log('Attempting login with:', usernameOrEmail);
       const formData = new FormData();
-      formData.append('username', username);
+      formData.append('username', usernameOrEmail);
       formData.append('password', password);
+      formData.append('grant_type', 'password');
 
-      const response = await axios.post('/api/auth/login', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await axios.post('/api/auth/login', formData);
+      console.log('Login response:', response.data);
 
-      const { access_token, username: loggedInUsername } = response.data;
+      const { access_token } = response.data;
+      if (!access_token) {
+        throw new Error('No access token received');
+      }
+
       localStorage.setItem('token', access_token);
-      localStorage.setItem('username', loggedInUsername);
-      
       await fetchUserProfile(access_token);
       navigate('/');
       return response.data;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Login error:', error.response || error);
       throw error;
     }
   };
 
   const register = async (userData) => {
     try {
+      console.log('Registration data:', userData);
       const formData = new FormData();
       Object.keys(userData).forEach(key => {
         formData.append(key, userData[key]);
       });
 
-      const response = await axios.post('/api/auth/register', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await axios.post('/api/auth/register', formData);
+      console.log('Registration response:', response.data);
 
-      // After successful registration, log in with username
-      await login(userData.username, userData.password);
+      const { access_token } = response.data;
+      if (!access_token) {
+        throw new Error('No access token received');
+      }
+
+      localStorage.setItem('token', access_token);
+      await fetchUserProfile(access_token);
+      navigate('/');
       return response.data;
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Registration error:', error.response || error);
       throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('username');
     setUser(null);
     navigate('/login');
   };

@@ -62,10 +62,17 @@ async def register(
             data={"sub": email}
         )
         
-        return {"access_token": access_token, "token_type": "bearer", "username": username}
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "email": email,
+            "username": username
+        }
         
     except Exception as e:
         logger.error(f"Error during registration: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -114,13 +121,14 @@ async def login(
         return {
             "access_token": access_token,
             "token_type": "bearer",
+            "email": user["email"],
             "username": user["username"]
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -128,13 +136,20 @@ async def login(
 
 @router.get("/profile")
 async def get_current_user_profile(current_user: dict = Depends(get_current_user)):
-    # Remove sensitive information
-    user_data = {
-        "id": str(current_user["_id"]),
-        "username": current_user["username"],
-        "email": current_user["email"],
-        "games": current_user["games"],
-        "skill_level": current_user["skill_level"],
-        "play_style": current_user["play_style"],
-    }
-    return user_data
+    try:
+        # Remove sensitive information
+        user_data = {
+            "id": str(current_user["_id"]),
+            "username": current_user["username"],
+            "email": current_user["email"],
+            "games": current_user["games"],
+            "skill_level": current_user["skill_level"],
+            "play_style": current_user["play_style"],
+        }
+        return user_data
+    except Exception as e:
+        logger.error(f"Error fetching user profile: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching user profile"
+        )

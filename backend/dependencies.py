@@ -47,8 +47,13 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    try:
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        logger.info(f"Created access token for user: {data.get('sub')}")
+        return encoded_jwt
+    except Exception as e:
+        logger.error(f"Error creating access token: {str(e)}")
+        raise
 
 def get_db():
     return db
@@ -60,14 +65,26 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        logger.info("Decoding JWT token")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        email: str = payload.get("sub")
+        if email is None:
+            logger.warning("No email found in token")
             raise credentials_exception
-    except JWTError:
+            
+        logger.info(f"Looking up user with email: {email}")
+        user = await db.users.find_one({"email": email})
+        
+        if user is None:
+            logger.warning(f"No user found with email: {email}")
+            raise credentials_exception
+            
+        logger.info(f"Successfully authenticated user: {email}")
+        return user
+        
+    except JWTError as e:
+        logger.error(f"JWT Error: {str(e)}")
         raise credentials_exception
-    
-    user = await db.users.find_one({"_id": user_id})
-    if user is None:
+    except Exception as e:
+        logger.error(f"Error in get_current_user: {str(e)}")
         raise credentials_exception
-    return user

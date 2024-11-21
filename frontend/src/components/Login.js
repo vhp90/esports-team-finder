@@ -8,37 +8,58 @@ import {
   VStack,
   Text,
   useToast,
+  FormHelperText,
 } from '@chakra-ui/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(username, password);
+      console.log('Attempting login with:', formData.username);
+      await login(formData.username, formData.password);
+      
       toast({
         title: 'Login successful',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
-      navigate('/profile');
+      navigate('/');
     } catch (error) {
       console.error('Login error:', error);
+      let errorMessage = 'An error occurred during login';
+      
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Login failed',
-        description: error.response?.data?.detail || 'An error occurred',
+        description: errorMessage,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     } finally {
@@ -54,20 +75,24 @@ const Login = () => {
       <form onSubmit={handleSubmit}>
         <VStack spacing={4}>
           <FormControl isRequired>
-            <FormLabel>Username</FormLabel>
+            <FormLabel>Username or Email</FormLabel>
             <Input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
               isDisabled={isLoading}
             />
+            <FormHelperText>
+              Enter your username or email address
+            </FormHelperText>
           </FormControl>
           <FormControl isRequired>
             <FormLabel>Password</FormLabel>
             <Input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               isDisabled={isLoading}
             />
           </FormControl>
