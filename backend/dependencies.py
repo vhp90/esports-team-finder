@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 # MongoDB configuration
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/esports_team_finder")
 client = AsyncIOMotorClient(MONGODB_URL)
-db = client.get_default_database()
+# Extract database name from URL or use default
+db_name = MONGODB_URL.split('/')[-1].split('?')[0] if '/' in MONGODB_URL else 'esports_team_finder'
+db = client[db_name]
 
 # Authentication configuration
 SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key")
