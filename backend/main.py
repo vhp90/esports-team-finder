@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from routes.teams import router as teams_router
 from routes.auth import router as auth_router
 from dependencies import get_db
@@ -49,37 +49,31 @@ async def health():
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        return {"status": "unhealthy", "database": str(e)}
+        return JSONResponse(
+            status_code=500,
+            content={"status": "unhealthy", "database": str(e)}
+        )
 
-# Serve frontend static files
-@app.on_event("startup")
-async def prepare_static_files():
-    # Create static directory if it doesn't exist
-    static_dir = Path("static")
-    static_dir.mkdir(exist_ok=True)
-    
-    # Copy frontend build files to static directory
-    frontend_build = Path("../frontend/dist")
-    if frontend_build.exists():
-        # Clear existing files
-        if static_dir.exists():
-            shutil.rmtree(static_dir)
-        # Copy new files
-        shutil.copytree(frontend_build, static_dir)
-        logger.info("Frontend static files copied successfully")
-    else:
-        logger.warning("Frontend build directory not found")
+# Static files configuration
+static_dir = Path("static")
 
-# Mount static files
-app.mount("/assets", StaticFiles(directory="static/assets"), name="static")
+# Mount static files if the directory exists
+if static_dir.exists():
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+else:
+    logger.warning(f"Static directory not found at {static_dir.absolute()}")
 
-# Serve index.html for all other routes
+# Fallback route for SPA
 @app.get("/{full_path:path}")
-async def serve_frontend(full_path: str):
-    static_file = Path("static") / full_path
-    if static_file.exists() and static_file.is_file():
-        return FileResponse(static_file)
-    return FileResponse("static/index.html")
+async def serve_spa(full_path: str):
+    index_path = static_dir / "index.html"
+    if not index_path.exists():
+        logger.error(f"index.html not found at {index_path.absolute()}")
+        return JSONResponse(
+            status_code=404,
+            content={"message": "Frontend not built"}
+        )
+    return FileResponse(str(index_path))
 
 if __name__ == "__main__":
     import uvicorn

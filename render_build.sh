@@ -1,11 +1,17 @@
 #!/bin/bash
 
+# Create necessary directories
+mkdir -p backend/static
+
 echo "Installing frontend dependencies..."
 cd frontend
 npm install
 
 echo "Building frontend..."
-npm run build
+CI=false npm run build
+
+echo "Moving frontend build to backend/static..."
+cp -r build/* ../backend/static/
 
 echo "Installing backend dependencies..."
 cd ../backend
