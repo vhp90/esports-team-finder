@@ -36,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routers
+# Include API routers with proper prefixes
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(teams_router, prefix="/api/teams", tags=["teams"])
 
@@ -57,15 +57,26 @@ async def health():
 # Static files configuration
 static_dir = Path("static")
 
-# Mount static files if the directory exists
-if static_dir.exists():
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
-else:
-    logger.warning(f"Static directory not found at {static_dir.absolute()}")
+# First mount the static files for assets
+if (static_dir / "static").exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir / "static")), name="static")
 
-# Fallback route for SPA
+# Then mount the root static files
+if static_dir.exists():
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="root")
+
+# Catch-all route for SPA - this must be the last route
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
+    # Log the incoming request path
+    logger.info(f"Serving SPA for path: {full_path}")
+    
+    # First check if the path exists as a static file
+    requested_file = static_dir / full_path
+    if requested_file.is_file():
+        return FileResponse(str(requested_file))
+    
+    # If not a static file, serve index.html for client-side routing
     index_path = static_dir / "index.html"
     if not index_path.exists():
         logger.error(f"index.html not found at {index_path.absolute()}")
@@ -73,6 +84,8 @@ async def serve_spa(full_path: str):
             status_code=404,
             content={"message": "Frontend not built"}
         )
+    
+    logger.info(f"Serving index.html for SPA routing")
     return FileResponse(str(index_path))
 
 if __name__ == "__main__":

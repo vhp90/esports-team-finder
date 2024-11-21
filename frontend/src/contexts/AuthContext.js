@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 const AuthContext = createContext(null);
 
 // Configure axios defaults
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-axios.defaults.headers.common['Content-Type'] = 'application/json';
+const API_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+axios.defaults.baseURL = API_URL;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserProfile = useCallback(async (token) => {
     try {
-      const response = await axios.get('/users/me', {
+      const response = await axios.get('/api/auth/profile', {
         headers: { 
           'Authorization': `Bearer ${token}`
         }
@@ -51,21 +51,18 @@ export const AuthProvider = ({ children }) => {
       const formData = new FormData();
       formData.append('username', username);
       formData.append('password', password);
-      formData.append('grant_type', 'password');
 
-      const response = await axios.post('/auth/login', formData, {
+      const response = await axios.post('/api/auth/login', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
-      const { access_token } = response.data;
-      if (!access_token) {
-        throw new Error('No access token received');
-      }
 
+      const { access_token } = response.data;
       localStorage.setItem('token', access_token);
+      
       await fetchUserProfile(access_token);
+      navigate('/');
       return response.data;
     } catch (error) {
       console.error('Login error:', error);
@@ -80,19 +77,14 @@ export const AuthProvider = ({ children }) => {
         formData.append(key, userData[key]);
       });
 
-      const response = await axios.post('/auth/register', formData, {
+      const response = await axios.post('/api/auth/register', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      const { access_token } = response.data;
-      if (!access_token) {
-        throw new Error('No access token received');
-      }
-
-      localStorage.setItem('token', access_token);
-      await fetchUserProfile(access_token);
+      // After successful registration, automatically log in
+      await login(userData.email, userData.password);
       return response.data;
     } catch (error) {
       console.error('Registration error:', error);
@@ -100,39 +92,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = useCallback(() => {
+  const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
     navigate('/login');
-  }, [navigate]);
-
-  // Set up axios interceptor for adding token to requests
-  useEffect(() => {
-    const interceptor = axios.interceptors.request.use(
-      config => {
-        const token = localStorage.getItem('token');
-        if (token && !config.headers.Authorization) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      error => {
-        return Promise.reject(error);
-      }
-    );
-
-    return () => axios.interceptors.request.eject(interceptor);
-  }, []);
+  };
 
   const value = {
     user,
-    loading,
     login,
     logout,
     register,
+    loading
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
