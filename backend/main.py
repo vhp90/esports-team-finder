@@ -22,6 +22,7 @@ if not CORS_ORIGINS or CORS_ORIGINS == [""]:
     CORS_ORIGINS = [
         "http://localhost:3000",  # React development server
         "http://localhost:5173",  # Vite development server
+        "https://esports-team-finder.onrender.com",  # Production frontend
     ]
 
 logger.info(f"Configured CORS origins: {CORS_ORIGINS}")
