@@ -20,7 +20,7 @@ services:
     name: esports-team-finder-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/build
+    staticPublishPath: ./frontend/dist
     envVars:
       - key: REACT_APP_API_URL
         value: https://esports-team-finder-api.onrender.com
