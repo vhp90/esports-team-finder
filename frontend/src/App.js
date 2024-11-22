@@ -1,12 +1,11 @@
 import React from 'react';
 import { ChakraProvider, Box, Text } from '@chakra-ui/react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import theme from './theme';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import TeamFinder from './pages/TeamFinder';
-import Chat from './pages/Chat';
 import Login from './components/Login';
 import Register from './components/Register';
 import ProtectedRoute from './components/ProtectedRoute';
