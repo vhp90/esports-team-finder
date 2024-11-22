@@ -62,23 +62,54 @@ export const AuthProvider = ({ children }) => {
   const login = async (usernameOrEmail, password) => {
     try {
       console.log('Attempting login with:', usernameOrEmail);
+      
+      // Validate input
+      if (!usernameOrEmail || !password) {
+        throw new Error('Username and password are required');
+      }
+
+      // Create form data
       const formData = new FormData();
       formData.append('username', usernameOrEmail);
       formData.append('password', password);
 
-      const response = await axios.post('/api/auth/login', formData);
+      // Make login request
+      const response = await axios.post('/api/auth/login', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('Login response:', response.data);
+
+      // Check for access token
+      if (!response.data.access_token) {
+        throw new Error('No access token received');
+      }
+
       const newToken = response.data.access_token;
       
+      // Store token
       localStorage.setItem('token', newToken);
       setToken(newToken);
       
+      // Fetch user profile
       await fetchUserProfile(newToken);
       setIsAuthenticated(true);
-      navigate('/');
       
       return response.data;
     } catch (error) {
       console.error('Login failed:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 401) {
+        throw new Error('Invalid username or password');
+      } else if (error.response?.status === 404) {
+        throw new Error('User not found');
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      
       throw error;
     }
   };
