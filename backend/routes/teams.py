@@ -8,18 +8,49 @@ from dependencies import get_current_user, get_db
 router = APIRouter()
 
 @router.post("/", response_model=TeamResponse)
-async def create_team(team: TeamCreate, current_user: dict = Depends(get_current_user), db = Depends(get_db)):
-    team_data = team.dict()
-    team_data.update({
-        "leader_id": str(current_user["_id"]),
-        "members": [str(current_user["_id"])],
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    })
+async def create_team(
+    team: TeamCreate,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    team_dict = team.dict()
+    team_dict["leader_id"] = str(current_user["_id"])
+    team_dict["members"] = [str(current_user["_id"])]
+    team_dict["created_at"] = datetime.utcnow()
+    team_dict["updated_at"] = datetime.utcnow()
     
-    result = await db.teams.insert_one(team_data)
-    team_data["id"] = str(result.inserted_id)
-    return team_data
+    result = await db.teams.insert_one(team_dict)
+    created_team = await db.teams.find_one({"_id": result.inserted_id})
+    created_team["id"] = str(created_team["_id"])
+    
+    # Find users with similar interests and notify them
+    similar_users = await db.users.find({
+        "_id": {"$ne": current_user["_id"]},
+        "$or": [
+            {"interests.games": team.game},
+            {"interests.skill_level": team.skill_level}
+        ]
+    }).to_list(length=10)
+    
+    # Create notifications for similar users
+    notifications = []
+    for user in similar_users:
+        notification = {
+            "recipient_id": str(user["_id"]),
+            "type": "similar_interest",
+            "title": f"New Team Alert: {team.name}",
+            "message": f"A new team playing {team.game} at {team.skill_level} skill level is looking for members!",
+            "team_id": str(created_team["id"]),
+            "sender_id": str(current_user["_id"]),
+            "created_at": datetime.utcnow(),
+            "read": False
+        }
+        notifications.append(notification)
+    
+    if notifications:
+        await db.notifications.insert_many(notifications)
+    
+    return created_team
 
 @router.get("/", response_model=List[TeamResponse])
 async def list_teams(game: str = None, skill_level: str = None, db = Depends(get_db)):

@@ -2,8 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from routes.teams import router as teams_router
-from routes.auth import router as auth_router
+from routes import auth, teams, notifications, chat
 from dependencies import get_db
 import os
 import logging
@@ -37,8 +36,10 @@ app.add_middleware(
 )
 
 # Include API routers with proper prefixes
-app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
-app.include_router(teams_router, prefix="/api/teams", tags=["teams"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(teams.router, prefix="/api/teams", tags=["teams"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 
 # Health check endpoint
 @app.get("/api/health")
