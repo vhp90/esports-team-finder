@@ -27,6 +27,10 @@ rm -rf static/*
 echo "Copying frontend build to backend..."
 cp -r ../frontend/build/* static/
 
+# Verify the files were copied
+echo "Verifying static files..."
+ls -la static/
+
 # Install backend dependencies
 echo "Installing backend dependencies..."
 pip install -r requirements.txt

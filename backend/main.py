@@ -40,11 +40,11 @@ async def health_check():
 
 # Mount static files
 try:
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
     logger.info(f"Successfully mounted static files from {static_dir}")
 except Exception as e:
     logger.error(f"Failed to mount static files: {e}")
-    # Don't raise the error, as the directory might be empty during build
+    raise  # We should raise the error to know if there's an issue
 
 # Serve frontend
 @app.get("/{full_path:path}")
@@ -72,10 +72,7 @@ async def serve_frontend(full_path: str):
             return FileResponse(index_path)
             
         logger.warning(f"File not found: {full_path}")
-        raise HTTPException(
-            status_code=404,
-            detail="File not found. Make sure the application is built correctly."
-        )
+        return FileResponse(index_path)  # Always return index.html for client-side routing
     except Exception as e:
         logger.error(f"Error serving frontend: {str(e)}")
         raise
