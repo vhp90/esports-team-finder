@@ -14,6 +14,13 @@ cd ..
 # Frontend build
 echo "Installing frontend dependencies..."
 cd frontend
+
+# Clean npm cache and node_modules
+echo "Cleaning npm cache..."
+npm cache clean --force
+rm -rf node_modules package-lock.json
+
+echo "Installing dependencies..."
 npm install
 
 echo "Building frontend..."
