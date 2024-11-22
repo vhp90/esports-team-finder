@@ -3,6 +3,9 @@
 # Exit on error
 set -e
 
+# Enable verbose output
+set -x
+
 echo "Starting build process..."
 
 # Install frontend dependencies and build
@@ -13,6 +16,7 @@ rm -rf node_modules package-lock.json
 export NODE_OPTIONS="--max_old_space_size=2048"  # Prevent memory issues during build
 npm cache clean --force
 npm install --legacy-peer-deps
+npm install --save-dev @babel/plugin-proposal-private-property-in-object
 CI=false npm run build
 
 # Create static directory in backend if it doesn't exist
