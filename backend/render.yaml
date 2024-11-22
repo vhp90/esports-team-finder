@@ -5,37 +5,8 @@ services:
     env: python
     region: ohio
     plan: free
-    buildCommand: |
-      # Step 1: Install Python dependencies
-      cd backend
-      pip install -r requirements.txt
-      cd ..
-      
-      # Step 2: Install Node.js
-      curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      apt-get install -y nodejs
-      
-      # Step 3: Build Frontend
-      cd frontend
-      # Install dependencies including devDependencies
-      npm install
-      # Install cross-env globally
-      npm install -g cross-env
-      # Build with proper configuration
-      cross-env PUBLIC_URL=/ GENERATE_SOURCEMAP=false npm run build
-      
-      # Step 4: Setup Static Files
-      cd ..
-      mkdir -p backend/static
-      cp -r frontend/build/* backend/static/
-      
-      # Step 5: Debug Static Files
-      echo "Listing contents of frontend/build directory:"
-      ls -la frontend/build
-      echo "Listing contents of backend/static directory:"
-      ls -la backend/static
-      python backend/debug_static.py
-    startCommand: cd backend && gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    buildCommand: bash render_build.sh
+    startCommand: cd backend && python main.py
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
@@ -54,6 +25,10 @@ services:
         value: 8000
       - key: NODE_ENV
         value: production
+      - key: CI
+        value: "false"
+      - key: GENERATE_SOURCEMAP
+        value: "false"
       - key: PYTHONPATH
         value: backend
       - key: PUBLIC_URL
