@@ -20,16 +20,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # CORS configuration
-CORS_ORIGINS = [
-    "http://localhost:3000",  # React development server
-    "http://localhost:5173",  # Vite development server
-]
-
-logger.info(f"Configured CORS origins: {CORS_ORIGINS}")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins since we're serving frontend from same domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,37 +50,49 @@ async def health():
 
 # Static files configuration
 static_dir = Path("static")
+static_dir.mkdir(exist_ok=True)
 
-# First mount the static files for assets
-if (static_dir / "static").exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir / "static")), name="static")
+# Ensure the static directory exists and contains the frontend build
+def copy_frontend_build():
+    frontend_build = Path("../frontend/build")
+    if frontend_build.exists():
+        # Copy all files from frontend build to static directory
+        for item in frontend_build.glob("*"):
+            if item.is_file():
+                shutil.copy2(item, static_dir)
+            else:
+                dest = static_dir / item.name
+                if dest.exists():
+                    shutil.rmtree(dest)
+                shutil.copytree(item, dest)
+        logger.info("Frontend build files copied to static directory")
+    else:
+        logger.warning("Frontend build directory not found")
 
-# Then mount the root static files
+# Copy frontend build files
+copy_frontend_build()
+
+# Mount static files
 if static_dir.exists():
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="root")
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
-# Catch-all route for SPA - this must be the last route
+# Catch-all route for SPA
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    # Log the incoming request path
     logger.info(f"Serving SPA for path: {full_path}")
     
-    # First check if the path exists as a static file
-    requested_file = static_dir / full_path
-    if requested_file.is_file():
-        return FileResponse(str(requested_file))
+    # Check for static file
+    static_file = static_dir / full_path
+    if static_file.is_file():
+        return FileResponse(str(static_file))
     
-    # If not a static file, serve index.html for client-side routing
-    index_path = static_dir / "index.html"
-    if not index_path.exists():
-        logger.error(f"index.html not found at {index_path.absolute()}")
-        return JSONResponse(
-            status_code=404,
-            content={"message": "Frontend not built"}
-        )
-    
-    logger.info(f"Serving index.html for SPA routing")
-    return FileResponse(str(index_path))
+    # Serve index.html for client-side routing
+    index_html = static_dir / "index.html"
+    if index_html.exists():
+        return FileResponse(str(index_html))
+    else:
+        logger.error("index.html not found")
+        raise HTTPException(status_code=404, detail="Frontend not built")
 
 if __name__ == "__main__":
     import uvicorn
