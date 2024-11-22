@@ -30,8 +30,10 @@ export const WebSocketProvider = ({ children }) => {
   const connectWebSocket = () => {
     try {
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000';
-      const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/${user.id}`);
+      const wsHost = process.env.NODE_ENV === 'production' 
+        ? 'esports-team-finder-backend.onrender.com' 
+        : 'localhost:8000';
+      const ws = new WebSocket(`${wsProtocol}//${wsHost}/api/ws/chat/${user.id}`);
     
       ws.onopen = () => {
         console.log('WebSocket Connected');

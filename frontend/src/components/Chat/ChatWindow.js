@@ -30,7 +30,9 @@ const ChatWindow = ({ chatId, otherUser }) => {
     
     // Setup WebSocket connection
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000';
+    const wsHost = process.env.NODE_ENV === 'production' 
+      ? 'esports-team-finder-backend.onrender.com' 
+      : 'localhost:8000';
     const wsConnection = new WebSocket(`${wsProtocol}//${wsHost}/api/ws/chat/${user.id}`);
     
     wsConnection.onmessage = (event) => {
