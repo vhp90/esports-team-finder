@@ -5,8 +5,13 @@ const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
   const { user } = useAuth();
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [messages, setMessages] = useState({});
   const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+
+  const MAX_RECONNECT_ATTEMPTS = 5;
+  const INITIAL_RECONNECT_DELAY = 1000;
 
   useEffect(() => {
     if (user) {
@@ -16,35 +21,60 @@ export const WebSocketProvider = ({ children }) => {
       if (wsRef.current) {
         wsRef.current.close();
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
     };
   }, [user]);
 
   const connectWebSocket = () => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/${user.id}`);
+    try {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsHost = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000';
+      const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/${user.id}`);
     
-    ws.onopen = () => {
-      console.log('WebSocket Connected');
-    };
+      ws.onopen = () => {
+        console.log('WebSocket Connected');
+        setReconnectAttempts(0);
+      };
 
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setMessages(prev => ({
-        ...prev,
-        [message.from_user]: [...(prev[message.from_user] || []), message]
-      }));
-    };
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          setMessages(prev => ({
+            ...prev,
+            [message.from_user]: [...(prev[message.from_user] || []), message]
+          }));
+        } catch (error) {
+          console.error('Error processing message:', error);
+        }
+      };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket Error:', error);
-    };
+      ws.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+      };
 
-    ws.onclose = () => {
-      console.log('WebSocket Disconnected');
-      // Attempt to reconnect after a delay
-      setTimeout(connectWebSocket, 5000);
-    };
+      ws.onclose = (event) => {
+        console.log('WebSocket Disconnected:', event.code, event.reason);
+        
+        // Only attempt to reconnect if we haven't reached the maximum attempts
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+          console.log(`Attempting to reconnect in ${delay}ms... (Attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            setReconnectAttempts(prev => prev + 1);
+            connectWebSocket();
+          }, delay);
+        } else {
+          console.log('Maximum reconnection attempts reached. Please refresh the page to try again.');
+        }
+      };
 
-    wsRef.current = ws;
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('Error creating WebSocket connection:', error);
+    }
   };
 
   const sendMessage = (toUser, content) => {

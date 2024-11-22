@@ -23,15 +23,28 @@ const ChatList = ({ onChatSelect }) => {
 
   const fetchChats = async () => {
     try {
-      const response = await fetch('/api/chats/', {
+      const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/api/chats/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        console.error('Received invalid chats data:', data);
+        setChats([]);
+        return;
+      }
+      
       setChats(data);
     } catch (error) {
       console.error('Error fetching chats:', error);
+      setChats([]);
     }
   };
 

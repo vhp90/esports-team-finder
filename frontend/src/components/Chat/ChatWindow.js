@@ -29,14 +29,28 @@ const ChatWindow = ({ chatId, otherUser }) => {
     fetchMessages();
     
     // Setup WebSocket connection
-    const wsConnection = new WebSocket(`ws://${window.location.hostname}:${window.location.port}/api/ws/chat/${user.id}`);
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000';
+    const wsConnection = new WebSocket(`${wsProtocol}//${wsHost}/api/ws/chat/${user.id}`);
     
     wsConnection.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.chat_id === chatId) {
-        setMessages(prev => [...prev, message]);
-        scrollToBottom();
+      try {
+        const message = JSON.parse(event.data);
+        if (message.chat_id === chatId) {
+          setMessages(prev => [...prev, message]);
+          scrollToBottom();
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
       }
+    };
+
+    wsConnection.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+    };
+
+    wsConnection.onclose = () => {
+      console.log('WebSocket Disconnected');
     };
 
     setWs(wsConnection);
@@ -46,7 +60,7 @@ const ChatWindow = ({ chatId, otherUser }) => {
         wsConnection.close();
       }
     };
-  }, [chatId]);
+  }, [chatId, user.id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -54,11 +68,15 @@ const ChatWindow = ({ chatId, otherUser }) => {
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch(`/api/chats/${chatId}/messages`, {
+      const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       setMessages(data);
     } catch (error) {
@@ -71,7 +89,8 @@ const ChatWindow = ({ chatId, otherUser }) => {
     if (!newMessage.trim()) return;
 
     try {
-      const response = await fetch(`/api/chats/${chatId}/messages`, {
+      const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -83,9 +102,13 @@ const ChatWindow = ({ chatId, otherUser }) => {
         }),
       });
 
-      if (response.ok) {
-        setNewMessage('');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      setNewMessage('');
+      // Fetch messages to ensure we have the latest state
+      fetchMessages();
     } catch (error) {
       console.error('Error sending message:', error);
     }
