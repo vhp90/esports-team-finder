@@ -1,7 +1,7 @@
 import React from 'react';
-import { ChakraProvider, Box, Text } from '@chakra-ui/react';
+import { ChakraProvider, Box } from '@chakra-ui/react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from './theme';
 import Navbar from './components/Navbar';
@@ -18,26 +18,6 @@ import CreateTeam from './components/CreateTeam';
 import NotificationCenter from './components/Notifications/NotificationCenter';
 import ChatPage from './pages/ChatPage';
 
-// Create Material-UI theme
-const muiTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#6B46C1',
-    },
-    secondary: {
-      main: '#4FD1C5',
-    },
-    background: {
-      default: '#1A202C',
-      paper: '#2D3748',
-    },
-  },
-  typography: {
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  },
-});
-
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -49,15 +29,16 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('React Error Boundary caught an error:', error, errorInfo);
+    console.error('Error caught by boundary:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <Box p={4}>
-          <Text color="red.500">Something went wrong. Please check the console for details.</Text>
-          <Text color="gray.500">{this.state.error?.message}</Text>
+        <Box p={5} textAlign="center">
+          <h1>Something went wrong.</h1>
+          <p>Please check the console for details.</p>
+          <pre>{this.state.error?.toString()}</pre>
         </Box>
       );
     }
@@ -68,53 +49,68 @@ class ErrorBoundary extends React.Component {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={muiTheme}>
-        <CssBaseline />
+      <Router>
         <ChakraProvider theme={theme}>
-          <Router>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
             <AuthProvider>
               <WebSocketProvider>
-                <Box minH="100vh">
+                <Box minH="100vh" bg="gray.800">
                   <Navbar />
                   <NotificationCenter />
                   <Box p={4}>
                     <Routes>
+                      <Route path="/" element={<Home />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/register" element={<Register />} />
-                      <Route path="/profile" element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/teams" element={
-                        <ProtectedRoute>
-                          <TeamList />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/teams/create" element={
-                        <ProtectedRoute>
-                          <CreateTeam />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/chat" element={
-                        <ProtectedRoute>
-                          <ChatPage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/" element={<Home />} />
-                      <Route path="/team-finder" element={
-                        <ProtectedRoute>
-                          <TeamFinder />
-                        </ProtectedRoute>
-                      } />
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/team-finder"
+                        element={
+                          <ProtectedRoute>
+                            <TeamFinder />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/teams"
+                        element={
+                          <ProtectedRoute>
+                            <TeamList />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/create-team"
+                        element={
+                          <ProtectedRoute>
+                            <CreateTeam />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/chat"
+                        element={
+                          <ProtectedRoute>
+                            <ChatPage />
+                          </ProtectedRoute>
+                        }
+                      />
                     </Routes>
                   </Box>
                 </Box>
               </WebSocketProvider>
             </AuthProvider>
-          </Router>
+          </ThemeProvider>
         </ChakraProvider>
-      </ThemeProvider>
+      </Router>
     </ErrorBoundary>
   );
 }
