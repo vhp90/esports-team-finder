@@ -2,21 +2,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from routes import auth, teams, notifications, chat
-from dependencies import get_db, CORS_ORIGINS
-import os
+from routes import auth, teams, chat
+from dependencies import CORS_ORIGINS
 import logging
+import os
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -34,59 +27,52 @@ app.add_middleware(
 # API routes
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(teams.router, prefix="/api/teams", tags=["teams"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+
+# Ensure static directory exists
+static_dir = Path(__file__).parent / "static"
+static_dir.mkdir(exist_ok=True)
 
 # Health check endpoint
 @app.get("/api/health")
-async def health():
-    try:
-        db = get_db()
-        await db.command("ping")
-        return {"status": "healthy", "message": "API and database are operational"}
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return {"status": "unhealthy", "error": str(e)}
-
-# Static files handling
-static_dir = Path(__file__).parent / "static"
-logger.info(f"Static directory path: {static_dir}")
-
-if not static_dir.exists():
-    logger.warning(f"Creating static directory: {static_dir}")
-    static_dir.mkdir(parents=True, exist_ok=True)
-
-# List static directory contents
-try:
-    logger.info("Static directory contents:")
-    for item in static_dir.iterdir():
-        logger.info(f"- {item.name}")
-except Exception as e:
-    logger.error(f"Error listing static directory: {e}")
+async def health_check():
+    return {"status": "healthy"}
 
 # Mount static files
 try:
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
-    logger.info("Successfully mounted static files at root path")
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    logger.info(f"Successfully mounted static files from {static_dir}")
 except Exception as e:
     logger.error(f"Failed to mount static files: {e}")
-    raise
+    # Don't raise the error, as the directory might be empty during build
 
-# Catch-all route for SPA
+# Serve frontend
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
+async def serve_frontend(full_path: str):
     # Skip API routes
     if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
+        raise HTTPException(status_code=404, detail="Not Found")
+        
+    # Path to the static directory
+    static_path = Path(__file__).parent / "static"
     
-    # Serve index.html for all other routes
-    index_file = static_dir / "index.html"
-    if index_file.exists():
-        logger.info(f"Serving index.html for path: {full_path}")
-        return FileResponse(index_file)
-    else:
-        logger.error(f"index.html not found in {static_dir}")
-        raise HTTPException(
-            status_code=404,
-            detail="Frontend files not found. Please ensure the application is built correctly."
-        )
+    # Try to serve the exact file if it exists
+    requested_path = static_path / full_path
+    if requested_path.is_file():
+        return FileResponse(requested_path)
+    
+    # Look for index.html
+    index_path = static_path / "index.html"
+    if index_path.is_file():
+        return FileResponse(index_path)
+        
+    # If neither file exists, return 404
+    raise HTTPException(
+        status_code=404,
+        detail="File not found. Make sure the application is built correctly."
+    )
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
