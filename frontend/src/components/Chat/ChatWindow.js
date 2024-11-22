@@ -33,8 +33,17 @@ const ChatWindow = ({ chatId, otherUser }) => {
     const wsHost = process.env.NODE_ENV === 'production' 
       ? 'esports-team-finder-backend.onrender.com' 
       : 'localhost:8000';
-    const wsConnection = new WebSocket(`${wsProtocol}//${wsHost}/api/ws/chat/${user.id}`);
+    const wsConnection = new WebSocket(`${wsProtocol}//${wsHost}/api/ws/chat/${chatId}`);
     
+    wsConnection.onopen = () => {
+      console.log('WebSocket Connected');
+      // Send authentication message
+      wsConnection.send(JSON.stringify({
+        type: 'authenticate',
+        token: token
+      }));
+    };
+
     wsConnection.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
@@ -53,6 +62,13 @@ const ChatWindow = ({ chatId, otherUser }) => {
 
     wsConnection.onclose = () => {
       console.log('WebSocket Disconnected');
+      // Try to reconnect after 3 seconds
+      setTimeout(() => {
+        if (chatId) {
+          console.log('Attempting to reconnect...');
+          setWs(null);
+        }
+      }, 3000);
     };
 
     setWs(wsConnection);
@@ -62,7 +78,7 @@ const ChatWindow = ({ chatId, otherUser }) => {
         wsConnection.close();
       }
     };
-  }, [chatId, user.id]);
+  }, [chatId, token]);
 
   useEffect(() => {
     scrollToBottom();
@@ -88,9 +104,18 @@ const ChatWindow = ({ chatId, otherUser }) => {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !ws) return;
 
     try {
+      // Send through WebSocket
+      ws.send(JSON.stringify({
+        type: 'message',
+        content: newMessage,
+        chat_id: chatId,
+        sender_id: user.id
+      }));
+
+      // Also send through HTTP for persistence
       const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
       const response = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
         method: 'POST',
@@ -109,8 +134,6 @@ const ChatWindow = ({ chatId, otherUser }) => {
       }
 
       setNewMessage('');
-      // Fetch messages to ensure we have the latest state
-      fetchMessages();
     } catch (error) {
       console.error('Error sending message:', error);
     }

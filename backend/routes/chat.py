@@ -1,15 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from typing import List
+from typing import List, Dict
 from bson import ObjectId
 from datetime import datetime
+import json
+import jwt
+from config import settings
 
 from dependencies import get_current_user, get_db
 from models.chat import ChatCreate, ChatResponse, MessageCreate, MessageResponse
 
 router = APIRouter()
 
-# Store active websocket connections
-active_connections = {}
+# Store active websocket connections: chat_id -> list of websockets
+active_connections: Dict[str, List[WebSocket]] = {}
 
 @router.post("/chats/", response_model=ChatResponse)
 async def create_chat(
@@ -91,19 +94,78 @@ async def create_message(
     created_message = await db.messages.find_one({"_id": result.inserted_id})
     created_message["id"] = str(created_message["_id"])
     
-    # Notify other participants through WebSocket if connected
-    for participant in chat["participants"]:
-        if participant != str(current_user["_id"]) and participant in active_connections:
-            await active_connections[participant].send_json(created_message)
+    # Notify participants through WebSocket if connected
+    if chat_id in active_connections:
+        for ws in active_connections[chat_id]:
+            try:
+                await ws.send_json(created_message)
+            except:
+                # Remove dead connections
+                active_connections[chat_id].remove(ws)
     
     return created_message
 
-@router.websocket("/ws/chat/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: str):
-    await websocket.accept()
-    active_connections[user_id] = websocket
+async def get_user_from_token(token: str, db):
     try:
-        while True:
-            await websocket.receive_text()  # Keep connection alive
-    except WebSocketDisconnect:
-        del active_connections[user_id]
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if user is None:
+            return None
+        return user
+    except jwt.JWTError:
+        return None
+
+@router.websocket("/ws/chat/{chat_id}")
+async def websocket_endpoint(websocket: WebSocket, chat_id: str, db = Depends(get_db)):
+    await websocket.accept()
+    
+    try:
+        # Wait for authentication message
+        auth_message = await websocket.receive_text()
+        auth_data = json.loads(auth_message)
+        
+        if auth_data.get("type") != "authenticate" or not auth_data.get("token"):
+            await websocket.close(code=4001)
+            return
+        
+        # Verify token and user
+        user = await get_user_from_token(auth_data["token"], db)
+        if not user:
+            await websocket.close(code=4001)
+            return
+            
+        # Verify user is participant of the chat
+        chat = await db.chats.find_one({"_id": ObjectId(chat_id)})
+        if not chat or str(user["_id"]) not in chat["participants"]:
+            await websocket.close(code=4003)
+            return
+        
+        # Add to active connections
+        if chat_id not in active_connections:
+            active_connections[chat_id] = []
+        active_connections[chat_id].append(websocket)
+        
+        try:
+            while True:
+                message = await websocket.receive_json()
+                if message.get("type") == "message":
+                    # Create message in database
+                    message_create = MessageCreate(
+                        content=message["content"],
+                        chat_id=chat_id
+                    )
+                    await create_message(chat_id, message_create, db, user)
+        except WebSocketDisconnect:
+            if chat_id in active_connections and websocket in active_connections[chat_id]:
+                active_connections[chat_id].remove(websocket)
+                if not active_connections[chat_id]:
+                    del active_connections[chat_id]
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        if chat_id in active_connections and websocket in active_connections[chat_id]:
+            active_connections[chat_id].remove(websocket)
+            if not active_connections[chat_id]:
+                del active_connections[chat_id]

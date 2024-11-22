@@ -25,7 +25,7 @@ async def create_notification(
     
     return created_notification
 
-@router.get("/notifications/me/", response_model=List[NotificationResponse])
+@router.get("/me/", response_model=List[NotificationResponse])
 async def get_my_notifications(
     db = Depends(get_db),
     current_user = Depends(get_current_user)
