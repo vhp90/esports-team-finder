@@ -1,16 +1,24 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { setTokens, getAccessToken, getRefreshToken, clearTokens } from '../utils/auth';
 
 const AuthContext = createContext(null);
 
 // Configure axios defaults
-const API_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? 'https://esports-team-finder.onrender.com' : 'http://localhost:8000');
 axios.defaults.baseURL = API_URL;
+
+// Add request interceptor to handle API URL
+axios.interceptors.request.use((config) => {
+  if (!config.url.startsWith('http')) {
+    config.url = `${API_URL}${config.url}`;
+  }
+  return config;
+});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
@@ -34,8 +42,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
       if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        setToken(null);
+        clearTokens();
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -46,10 +53,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUserProfile(storedToken).catch(() => {
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      fetchUserProfile(accessToken).catch(() => {
         setLoading(false);
         setIsAuthenticated(false);
       });
@@ -82,19 +88,16 @@ export const AuthProvider = ({ children }) => {
 
       console.log('Login response:', response.data);
 
-      // Check for access token
-      if (!response.data.access_token) {
-        throw new Error('No access token received');
+      // Check for tokens
+      if (!response.data.access_token || !response.data.refresh_token) {
+        throw new Error('Invalid token response');
       }
 
-      const newToken = response.data.access_token;
-      
-      // Store token
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
+      // Store tokens
+      setTokens(response.data.access_token, response.data.refresh_token);
       
       // Fetch user profile
-      await fetchUserProfile(newToken);
+      await fetchUserProfile(response.data.access_token);
       setIsAuthenticated(true);
       
       return response.data;
@@ -135,10 +138,9 @@ export const AuthProvider = ({ children }) => {
 
       console.log('Registration response:', response.data);
 
-      if (response.data.access_token) {
-        // Store the token
-        localStorage.setItem('token', response.data.access_token);
-        setToken(response.data.access_token);
+      if (response.data.access_token && response.data.refresh_token) {
+        // Store tokens
+        setTokens(response.data.access_token, response.data.refresh_token);
         
         // Fetch user profile
         await fetchUserProfile(response.data.access_token);
@@ -147,13 +149,12 @@ export const AuthProvider = ({ children }) => {
         // Navigate to home page
         navigate('/');
       } else {
-        throw new Error('No access token received after registration');
+        throw new Error('Invalid token response after registration');
       }
 
       return response.data;
     } catch (error) {
       console.error('Registration failed:', error);
-      // Log more details about the error
       if (error.response) {
         console.error('Error response:', error.response.data);
       }
@@ -162,8 +163,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    setToken(null);
+    clearTokens();
     setUser(null);
     setIsAuthenticated(false);
     navigate('/login');
@@ -171,7 +171,6 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    token,
     loading,
     isAuthenticated,
     login,

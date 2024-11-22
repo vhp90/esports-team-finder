@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import './utils/axiosConfig'; // Import axios configuration
 
 // Add error logging for uncaught errors
 window.onerror = function(message, source, lineno, colno, error) {

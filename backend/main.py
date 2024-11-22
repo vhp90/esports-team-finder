@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from routes import auth, teams, notifications, chat
-from dependencies import get_db
+from dependencies import get_db, CORS_ORIGINS
 import os
 import logging
 from pathlib import Path
@@ -21,16 +21,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# CORS configuration
-origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-logger.info(f"Allowed CORS origins: {origins}")
-
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # API routes
