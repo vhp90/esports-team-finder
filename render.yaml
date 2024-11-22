@@ -3,7 +3,7 @@ services:
   - type: web
     name: esports-team-finder
     env: python
-    buildCommand: ./build.sh  # This will build both frontend and backend
+    buildCommand: chmod +x build.sh && ./build.sh  # Ensure build script is executable
     startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
@@ -17,6 +17,8 @@ services:
       - key: REACT_APP_API_URL
         value: https://esports-team-finder.onrender.com
       - key: CI
-        value: false
+        value: "false"
       - key: DISABLE_ESLINT_PLUGIN
-        value: true
+        value: "true"
+      - key: NODE_OPTIONS
+        value: "--max_old_space_size=2048"
