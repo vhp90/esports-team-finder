@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChakraProvider, Box } from '@chakra-ui/react';
+import { ChakraProvider, Box, Text } from '@chakra-ui/react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import theme from './theme';
 import Navbar from './components/Navbar';
@@ -17,52 +17,81 @@ import CreateTeam from './components/CreateTeam';
 import NotificationCenter from './components/Notifications/NotificationCenter';
 import ChatPage from './pages/ChatPage';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('React Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Box p={4}>
+          <Text color="red.500">Something went wrong. Please check the console for details.</Text>
+          <Text color="gray.500">{this.state.error?.message}</Text>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <ChakraProvider theme={theme}>
-      <Router>
-        <AuthProvider>
-          <WebSocketProvider>
-            <Box minH="100vh">
-              <Navbar />
-              <NotificationCenter />
-              <Box p={4}>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/profile" element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/teams" element={
-                    <ProtectedRoute>
-                      <TeamList />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/teams/create" element={
-                    <ProtectedRoute>
-                      <CreateTeam />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/chat" element={
-                    <ProtectedRoute>
-                      <ChatPage />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/" element={<Home />} />
-                  <Route path="/team-finder" element={
-                    <ProtectedRoute>
-                      <TeamFinder />
-                    </ProtectedRoute>
-                  } />
-                </Routes>
+    <ErrorBoundary>
+      <ChakraProvider theme={theme}>
+        <Router>
+          <AuthProvider>
+            <WebSocketProvider>
+              <Box minH="100vh">
+                <Navbar />
+                <NotificationCenter />
+                <Box p={4}>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/profile" element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teams" element={
+                      <ProtectedRoute>
+                        <TeamList />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teams/create" element={
+                      <ProtectedRoute>
+                        <CreateTeam />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/chat" element={
+                      <ProtectedRoute>
+                        <ChatPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/" element={<Home />} />
+                    <Route path="/team-finder" element={
+                      <ProtectedRoute>
+                        <TeamFinder />
+                      </ProtectedRoute>
+                    } />
+                  </Routes>
+                </Box>
               </Box>
-            </Box>
-          </WebSocketProvider>
-        </AuthProvider>
-      </Router>
-    </ChakraProvider>
+            </WebSocketProvider>
+          </AuthProvider>
+        </Router>
+      </ChakraProvider>
+    </ErrorBoundary>
   );
 }
 
