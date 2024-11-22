@@ -25,6 +25,8 @@ const ChatWindow = ({ chatId, otherUser }) => {
   };
 
   useEffect(() => {
+    if (!chatId) return;
+
     // Fetch existing messages
     fetchMessages();
     
@@ -37,20 +39,13 @@ const ChatWindow = ({ chatId, otherUser }) => {
     
     wsConnection.onopen = () => {
       console.log('WebSocket Connected');
-      // Send authentication message
-      wsConnection.send(JSON.stringify({
-        type: 'authenticate',
-        token: token
-      }));
     };
 
     wsConnection.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.chat_id === chatId) {
-          setMessages(prev => [...prev, message]);
-          scrollToBottom();
-        }
+        setMessages(prev => [...prev, message]);
+        scrollToBottom();
       } catch (error) {
         console.error('Error processing message:', error);
       }
@@ -62,13 +57,6 @@ const ChatWindow = ({ chatId, otherUser }) => {
 
     wsConnection.onclose = () => {
       console.log('WebSocket Disconnected');
-      // Try to reconnect after 3 seconds
-      setTimeout(() => {
-        if (chatId) {
-          console.log('Attempting to reconnect...');
-          setWs(null);
-        }
-      }, 3000);
     };
 
     setWs(wsConnection);
@@ -78,7 +66,7 @@ const ChatWindow = ({ chatId, otherUser }) => {
         wsConnection.close();
       }
     };
-  }, [chatId, token]);
+  }, [chatId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -97,6 +85,7 @@ const ChatWindow = ({ chatId, otherUser }) => {
       }
       const data = await response.json();
       setMessages(data);
+      scrollToBottom();
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -107,15 +96,7 @@ const ChatWindow = ({ chatId, otherUser }) => {
     if (!newMessage.trim() || !ws) return;
 
     try {
-      // Send through WebSocket
-      ws.send(JSON.stringify({
-        type: 'message',
-        content: newMessage,
-        chat_id: chatId,
-        sender_id: user.id
-      }));
-
-      // Also send through HTTP for persistence
+      // Send through HTTP for persistence
       const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
       const response = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
         method: 'POST',
@@ -133,11 +114,26 @@ const ChatWindow = ({ chatId, otherUser }) => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      const message = await response.json();
+      
+      // Send through WebSocket for real-time
+      ws.send(JSON.stringify(message));
+      
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
+
+  if (!chatId) {
+    return (
+      <Paper elevation={3} sx={{ height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography variant="h6" color="textSecondary">
+          Select a chat to start messaging
+        </Typography>
+      </Paper>
+    );
+  }
 
   return (
     <Paper elevation={3} sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
@@ -149,9 +145,9 @@ const ChatWindow = ({ chatId, otherUser }) => {
       <Divider />
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
         <List>
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <ListItem
-              key={message.id}
+              key={message.id || index}
               sx={{
                 justifyContent: message.sender_id === user.id ? 'flex-end' : 'flex-start',
               }}
