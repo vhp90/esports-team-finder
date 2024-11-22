@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { setTokens, getAccessToken, getRefreshToken, clearTokens } from '../utils/auth';
+import { setTokens, getAccessToken, clearTokens } from '../utils/auth';
 
 const AuthContext = createContext(null);
 

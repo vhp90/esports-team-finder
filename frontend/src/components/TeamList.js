@@ -44,7 +44,7 @@ const TeamList = () => {
 
   useEffect(() => {
     fetchTeams();
-  }, [selectedGame, selectedSkillLevel]);
+  }, [fetchTeams, selectedGame, selectedSkillLevel]);
 
   const handleJoinTeam = async (teamId) => {
     try {

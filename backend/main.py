@@ -49,28 +49,36 @@ except Exception as e:
 # Serve frontend
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
-    # Skip API routes
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="Not Found")
+    try:
+        # Skip API routes
+        if full_path.startswith("api/"):
+            logger.debug(f"Skipping API route: {full_path}")
+            raise HTTPException(status_code=404, detail="Not Found")
+            
+        # Path to the static directory
+        static_path = Path(__file__).parent / "static"
+        logger.debug(f"Looking for file in static directory: {static_path}")
         
-    # Path to the static directory
-    static_path = Path(__file__).parent / "static"
-    
-    # Try to serve the exact file if it exists
-    requested_path = static_path / full_path
-    if requested_path.is_file():
-        return FileResponse(requested_path)
-    
-    # Look for index.html
-    index_path = static_path / "index.html"
-    if index_path.is_file():
-        return FileResponse(index_path)
+        # Try to serve the exact file if it exists
+        requested_path = static_path / full_path
+        if requested_path.is_file():
+            logger.debug(f"Serving requested file: {requested_path}")
+            return FileResponse(requested_path)
         
-    # If neither file exists, return 404
-    raise HTTPException(
-        status_code=404,
-        detail="File not found. Make sure the application is built correctly."
-    )
+        # Look for index.html
+        index_path = static_path / "index.html"
+        if index_path.is_file():
+            logger.debug(f"Serving index.html for path: {full_path}")
+            return FileResponse(index_path)
+            
+        logger.warning(f"File not found: {full_path}")
+        raise HTTPException(
+            status_code=404,
+            detail="File not found. Make sure the application is built correctly."
+        )
+    except Exception as e:
+        logger.error(f"Error serving frontend: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     import uvicorn

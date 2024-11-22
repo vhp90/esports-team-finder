@@ -1,28 +1,22 @@
 services:
-  # Backend Service
+  # Combined Service
   - type: web
-    name: esports-team-finder-backend
+    name: esports-team-finder
     env: python
-    buildCommand: cd backend && pip install -r requirements.txt
+    buildCommand: ./build.sh  # This will build both frontend and backend
     startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: NODE_VERSION
+        value: 18.0.0
       - key: MONGODB_URL
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: FRONTEND_URL
-        value: https://esports-team-finder-frontend.onrender.com
-
-  # Frontend Service
-  - type: web
-    name: esports-team-finder-frontend
-    env: node
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npm run preview
-    envVars:
-      - key: NODE_VERSION
-        value: 18.0.0
       - key: REACT_APP_API_URL
-        value: https://esports-team-finder-backend.onrender.com
+        value: https://esports-team-finder.onrender.com
+      - key: CI
+        value: false
+      - key: DISABLE_ESLINT_PLUGIN
+        value: true

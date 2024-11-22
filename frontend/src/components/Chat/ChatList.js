@@ -17,9 +17,7 @@ const ChatList = ({ onChatSelect }) => {
 
   useEffect(() => {
     fetchChats();
-    const interval = setInterval(fetchChats, 10000); // Refresh every 10 seconds
-    return () => clearInterval(interval);
-  }, []);
+  }, [fetchChats]);
 
   const fetchChats = async () => {
     try {

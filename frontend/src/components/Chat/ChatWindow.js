@@ -69,6 +69,10 @@ const ChatWindow = ({ chatId, otherUser }) => {
   }, [chatId]);
 
   useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 

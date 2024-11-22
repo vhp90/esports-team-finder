@@ -26,7 +26,7 @@ const NotificationCenter = () => {
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, fetchNotifications]);
 
   const fetchNotifications = async () => {
     if (!token) return;
