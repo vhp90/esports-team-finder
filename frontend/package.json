@@ -4,6 +4,7 @@
   "private": true,
   "homepage": "/",
   "dependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@chakra-ui/react": "^2.8.2",
     "@chakra-ui/icons": "^2.1.1",
     "@emotion/react": "^11.11.1",
@@ -22,9 +23,7 @@
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
-  "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
-  },
+  "devDependencies": {},
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
