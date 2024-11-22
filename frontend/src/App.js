@@ -14,6 +14,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import TeamList from './components/TeamList';
 import CreateTeam from './components/CreateTeam';
+import NotificationCenter from './components/Notifications/NotificationCenter';
+import ChatPage from './pages/ChatPage';
 
 function App() {
   return (
@@ -23,6 +25,7 @@ function App() {
           <WebSocketProvider>
             <Box minH="100vh">
               <Navbar />
+              <NotificationCenter />
               <Box p={4}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -44,7 +47,7 @@ function App() {
                   } />
                   <Route path="/chat" element={
                     <ProtectedRoute>
-                      <Chat />
+                      <ChatPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/" element={<Home />} />
