@@ -83,6 +83,53 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      console.log('Attempting registration with:', userData);
+      
+      // Create a new FormData instance
+      const formData = new FormData();
+      
+      // Append all user data to FormData
+      Object.keys(userData).forEach(key => {
+        formData.append(key, userData[key]);
+      });
+
+      // Make the registration request
+      const response = await axios.post('/api/auth/register', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('Registration response:', response.data);
+
+      if (response.data.access_token) {
+        // Store the token
+        localStorage.setItem('token', response.data.access_token);
+        setToken(response.data.access_token);
+        
+        // Fetch user profile
+        await fetchUserProfile(response.data.access_token);
+        setIsAuthenticated(true);
+        
+        // Navigate to home page
+        navigate('/');
+      } else {
+        throw new Error('No access token received after registration');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      // Log more details about the error
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+      throw error;
+    }
+  };
+
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
@@ -98,6 +145,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     logout,
+    register,
     fetchUserProfile
   };
 
