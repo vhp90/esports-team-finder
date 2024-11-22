@@ -17,7 +17,11 @@ cd frontend
 npm install
 
 echo "Building frontend..."
-CI=false GENERATE_SOURCEMAP=false npm run build
+# Set environment variables directly
+export CI=false
+export GENERATE_SOURCEMAP=false
+export PUBLIC_URL=/
+npm run build
 
 # Verify frontend build
 if [ ! -f "build/index.html" ]; then
