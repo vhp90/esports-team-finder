@@ -1,19 +1,56 @@
 services:
   # Backend API service
   - type: web
-    name: esports-team-finder-api
+    name: esports-team-finder
     env: python
+    region: ohio
+    plan: free
     buildCommand: |
-      pip install -r requirements.txt
-      cd ../frontend && npm install && npm run build
-      cd ../backend
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+      # Install Python dependencies
+      pip install -r backend/requirements.txt
+      
+      # Install Node.js and npm
+      curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      apt-get install -y nodejs
+      
+      # Install frontend dependencies and build
+      cd frontend
+      export NODE_ENV=production
+      export GENERATE_SOURCEMAP=false
+      npm ci --only=production
+      npm run build
+      
+      # Create static directory and copy frontend build
+      mkdir -p ../backend/static
+      cp -r build/* ../backend/static/
+      cd ..
+      
+      # Debug static files
+      python backend/debug_static.py
+    startCommand: cd backend && gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: NODE_VERSION
+        value: 18.x
       - key: MONGODB_URL
-        sync: false
+        fromDatabase:
+          name: esports-db
+          property: connectionString
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: JWT_ALGORITHM
         value: HS256
       - key: PORT
         value: 8000
+      - key: NODE_ENV
+        value: production
+      - key: PYTHONPATH
+        value: backend
+    autoDeploy: true
+
+databases:
+  - name: esports-db
+    databaseName: esports
+    plan: free

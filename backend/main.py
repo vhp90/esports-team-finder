@@ -7,7 +7,6 @@ from dependencies import get_db
 import os
 import logging
 from dotenv import load_dotenv
-import shutil
 from pathlib import Path
 
 # Load environment variables
@@ -49,50 +48,64 @@ async def health():
         )
 
 # Static files configuration
-static_dir = Path("static")
-static_dir.mkdir(exist_ok=True)
+static_dir = Path(__file__).parent / "static"
+logger.info(f"Static directory path: {static_dir}")
 
-# Ensure the static directory exists and contains the frontend build
-def copy_frontend_build():
-    frontend_build = Path("../frontend/build")
-    if frontend_build.exists():
-        # Copy all files from frontend build to static directory
-        for item in frontend_build.glob("*"):
-            if item.is_file():
-                shutil.copy2(item, static_dir)
-            else:
-                dest = static_dir / item.name
-                if dest.exists():
-                    shutil.rmtree(dest)
-                shutil.copytree(item, dest)
-        logger.info("Frontend build files copied to static directory")
-    else:
-        logger.warning("Frontend build directory not found")
+# Ensure static directory exists
+if not static_dir.exists():
+    logger.warning(f"Static directory does not exist at {static_dir}")
+    static_dir.mkdir(exist_ok=True)
+    logger.info("Created static directory")
 
-# Copy frontend build files
-copy_frontend_build()
+# List files in static directory for debugging
+logger.info("Files in static directory:")
+try:
+    for item in static_dir.rglob("*"):
+        if item.is_file():
+            logger.info(f"Found file: {item.relative_to(static_dir)}")
+except Exception as e:
+    logger.error(f"Error listing static files: {e}")
 
-# Mount static files
-if static_dir.exists():
+# Check for index.html
+index_path = static_dir / "index.html"
+if index_path.exists():
+    logger.info("index.html found in static directory")
+else:
+    logger.error("index.html not found in static directory")
+
+# Mount static files for the React app
+try:
     app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+    logger.info("Successfully mounted static files")
+except Exception as e:
+    logger.error(f"Error mounting static files: {e}")
 
 # Catch-all route for SPA
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
     logger.info(f"Serving SPA for path: {full_path}")
     
-    # Check for static file
-    static_file = static_dir / full_path
-    if static_file.is_file():
-        return FileResponse(str(static_file))
+    # Try to serve the requested file from static directory
+    requested_file = static_dir / full_path
+    if requested_file.is_file():
+        logger.info(f"Serving static file: {requested_file}")
+        return FileResponse(str(requested_file))
     
-    # Serve index.html for client-side routing
-    index_html = static_dir / "index.html"
-    if index_html.exists():
-        return FileResponse(str(index_html))
-    else:
-        logger.error("index.html not found")
-        raise HTTPException(status_code=404, detail="Frontend not built")
+    # For all other routes, serve index.html
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        logger.info(f"Serving index.html for path: {full_path}")
+        return FileResponse(str(index_file))
+    
+    logger.error(f"index.html not found in {static_dir}")
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": "Frontend files not found",
+            "static_dir": str(static_dir),
+            "requested_path": full_path
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn

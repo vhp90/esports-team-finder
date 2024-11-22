@@ -1,0 +1,16 @@
+{
+  "timestamp": "2024-11-22T14:53:29.739815",
+  "static_dir": "c:\\Users\\ROG\\CascadeProjects\\esports-team-finder\\backend\\static",
+  "stats": {
+    "total_files": 0,
+    "total_size_bytes": 0,
+    "file_types": {},
+    "largest_files": []
+  },
+  "critical_files": {
+    "index.html": "False",
+    "asset-manifest.json": "False",
+    "manifest.json": "False",
+    "favicon.ico": "False"
+  }
+}
