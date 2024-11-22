@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -57,53 +57,44 @@ if not static_dir.exists():
     static_dir.mkdir(exist_ok=True)
     logger.info("Created static directory")
 
-# List files in static directory for debugging
-logger.info("Files in static directory:")
-try:
-    for item in static_dir.rglob("*"):
-        if item.is_file():
-            logger.info(f"Found file: {item.relative_to(static_dir)}")
-except Exception as e:
-    logger.error(f"Error listing static files: {e}")
-
-# Check for index.html
-index_path = static_dir / "index.html"
-if index_path.exists():
-    logger.info("index.html found in static directory")
-else:
-    logger.error("index.html not found in static directory")
-
 # Mount static files for the React app
 try:
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
-    logger.info("Successfully mounted static files")
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    logger.info("Successfully mounted static files at /static")
 except Exception as e:
     logger.error(f"Error mounting static files: {e}")
 
-# Catch-all route for SPA
+# Serve index.html for all non-API routes
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
-    logger.info(f"Serving SPA for path: {full_path}")
+async def serve_spa(full_path: str, request: Request):
+    # Skip API routes
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    # Log the requested path
+    logger.info(f"Requested path: {full_path}")
     
-    # Try to serve the requested file from static directory
-    requested_file = static_dir / full_path
-    if requested_file.is_file():
-        logger.info(f"Serving static file: {requested_file}")
-        return FileResponse(str(requested_file))
+    # Try to serve static files first if they match the path
+    static_file_path = static_dir / full_path
+    if static_file_path.is_file():
+        logger.info(f"Serving static file: {static_file_path}")
+        return FileResponse(static_file_path)
     
-    # For all other routes, serve index.html
-    index_file = static_dir / "index.html"
-    if index_file.exists():
+    # Serve index.html for all other routes
+    index_path = static_dir / "index.html"
+    if index_path.exists():
         logger.info(f"Serving index.html for path: {full_path}")
-        return FileResponse(str(index_file))
+        return FileResponse(index_path)
     
+    # Log error if index.html doesn't exist
     logger.error(f"index.html not found in {static_dir}")
     return JSONResponse(
         status_code=404,
         content={
             "detail": "Frontend files not found",
             "static_dir": str(static_dir),
-            "requested_path": full_path
+            "requested_path": full_path,
+            "request_headers": dict(request.headers)
         }
     )
 

@@ -6,26 +6,34 @@ services:
     region: ohio
     plan: free
     buildCommand: |
-      # Install Python dependencies
-      pip install -r backend/requirements.txt
+      # Step 1: Install Python dependencies
+      cd backend
+      pip install -r requirements.txt
+      cd ..
       
-      # Install Node.js and npm
+      # Step 2: Install Node.js
       curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
       apt-get install -y nodejs
       
-      # Install frontend dependencies and build
+      # Step 3: Build Frontend
       cd frontend
-      export NODE_ENV=production
-      export GENERATE_SOURCEMAP=false
-      npm ci --only=production
-      npm run build
+      # Install dependencies including devDependencies
+      npm install
+      # Install cross-env globally
+      npm install -g cross-env
+      # Build with proper configuration
+      cross-env PUBLIC_URL=/ GENERATE_SOURCEMAP=false npm run build
       
-      # Create static directory and copy frontend build
-      mkdir -p ../backend/static
-      cp -r build/* ../backend/static/
+      # Step 4: Setup Static Files
       cd ..
+      mkdir -p backend/static
+      cp -r frontend/build/* backend/static/
       
-      # Debug static files
+      # Step 5: Debug Static Files
+      echo "Listing contents of frontend/build directory:"
+      ls -la frontend/build
+      echo "Listing contents of backend/static directory:"
+      ls -la backend/static
       python backend/debug_static.py
     startCommand: cd backend && gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     healthCheckPath: /api/health
@@ -48,6 +56,8 @@ services:
         value: production
       - key: PYTHONPATH
         value: backend
+      - key: PUBLIC_URL
+        value: /
     autoDeploy: true
 
 databases:
