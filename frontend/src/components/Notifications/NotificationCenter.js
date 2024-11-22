@@ -17,27 +17,48 @@ const NotificationCenter = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
-  const { token } = useAuth();
+  const { token, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    fetchNotifications();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (isAuthenticated && token) {
+      fetchNotifications();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, token]);
 
   const fetchNotifications = async () => {
+    if (!token) return;
+
     try {
       const response = await fetch('/api/notifications/me/', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.log('Token expired or invalid, please log in again');
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.read).length);
+      if (Array.isArray(data)) {
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.read).length);
+      } else {
+        console.error('Received invalid notifications data:', data);
+        setNotifications([]);
+        setUnreadCount(0);
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
@@ -50,14 +71,19 @@ const NotificationCenter = () => {
   };
 
   const markAsRead = async (notificationId) => {
+    if (!token) return;
+
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PUT',
+      const response = await fetch(`/api/notifications/${notificationId}/read/`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      fetchNotifications();
+      
+      if (response.ok) {
+        fetchNotifications();
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -66,7 +92,7 @@ const NotificationCenter = () => {
   const open = Boolean(anchorEl);
 
   return (
-    <>
+    <Box>
       <IconButton color="inherit" onClick={handleClick}>
         <Badge badgeContent={unreadCount} color="error">
           <NotificationsIcon />
@@ -91,31 +117,28 @@ const NotificationCenter = () => {
           </Typography>
           <Divider />
           <List>
-            {notifications.length === 0 ? (
+            {notifications && notifications.length > 0 ? (
+              notifications.map((notification, index) => (
+                <React.Fragment key={notification.id || index}>
+                  <ListItem onClick={() => markAsRead(notification.id)}>
+                    <ListItemText
+                      primary={notification.title}
+                      secondary={notification.message}
+                      sx={{ color: notification.read ? 'text.secondary' : 'text.primary' }}
+                    />
+                  </ListItem>
+                  {index < notifications.length - 1 && <Divider />}
+                </React.Fragment>
+              ))
+            ) : (
               <ListItem>
                 <ListItemText primary="No notifications" />
               </ListItem>
-            ) : (
-              notifications.map((notification) => (
-                <ListItem
-                  key={notification.id}
-                  onClick={() => markAsRead(notification.id)}
-                  sx={{
-                    bgcolor: notification.read ? 'transparent' : 'action.hover',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <ListItemText
-                    primary={notification.title}
-                    secondary={notification.message}
-                  />
-                </ListItem>
-              ))
             )}
           </List>
         </Box>
       </Popover>
-    </>
+    </Box>
   );
 };
 

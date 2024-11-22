@@ -10,23 +10,34 @@ axios.defaults.baseURL = API_URL;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
 
-  const fetchUserProfile = useCallback(async (token) => {
+  const fetchUserProfile = useCallback(async (authToken) => {
+    if (!authToken) {
+      setLoading(false);
+      setIsAuthenticated(false);
+      return null;
+    }
+
     try {
       const response = await axios.get('/api/auth/profile', {
         headers: { 
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${authToken}`
         }
       });
       setUser(response.data);
+      setIsAuthenticated(true);
       return response.data;
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
+        setToken(null);
         setUser(null);
+        setIsAuthenticated(false);
       }
       throw error;
     } finally {
@@ -35,13 +46,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetchUserProfile(token).catch(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+      fetchUserProfile(storedToken).catch(() => {
         setLoading(false);
+        setIsAuthenticated(false);
       });
     } else {
       setLoading(false);
+      setIsAuthenticated(false);
     }
   }, [fetchUserProfile]);
 
@@ -51,64 +65,40 @@ export const AuthProvider = ({ children }) => {
       const formData = new FormData();
       formData.append('username', usernameOrEmail);
       formData.append('password', password);
-      formData.append('grant_type', 'password');
 
       const response = await axios.post('/api/auth/login', formData);
-      console.log('Login response:', response.data);
-
-      const { access_token } = response.data;
-      if (!access_token) {
-        throw new Error('No access token received');
-      }
-
-      localStorage.setItem('token', access_token);
-      await fetchUserProfile(access_token);
+      const newToken = response.data.access_token;
+      
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+      
+      await fetchUserProfile(newToken);
+      setIsAuthenticated(true);
       navigate('/');
+      
       return response.data;
     } catch (error) {
-      console.error('Login error:', error.response || error);
+      console.error('Login failed:', error);
       throw error;
     }
   };
 
-  const register = async (userData) => {
-    try {
-      console.log('Registration data:', userData);
-      const formData = new FormData();
-      Object.keys(userData).forEach(key => {
-        formData.append(key, userData[key]);
-      });
-
-      const response = await axios.post('/api/auth/register', formData);
-      console.log('Registration response:', response.data);
-
-      const { access_token } = response.data;
-      if (!access_token) {
-        throw new Error('No access token received');
-      }
-
-      localStorage.setItem('token', access_token);
-      await fetchUserProfile(access_token);
-      navigate('/');
-      return response.data;
-    } catch (error) {
-      console.error('Registration error:', error.response || error);
-      throw error;
-    }
-  };
-
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
+    setToken(null);
     setUser(null);
+    setIsAuthenticated(false);
     navigate('/login');
-  };
+  }, [navigate]);
 
   const value = {
     user,
+    token,
+    loading,
+    isAuthenticated,
     login,
     logout,
-    register,
-    loading
+    fetchUserProfile
   };
 
   return (
