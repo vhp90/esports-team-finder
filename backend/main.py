@@ -85,9 +85,3 @@ async def serve_spa(full_path: str):
             status_code=404,
             detail="Frontend files not found. Please ensure the application is built correctly."
         )
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    logger.info(f"Starting server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
