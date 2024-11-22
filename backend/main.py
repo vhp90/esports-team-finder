@@ -7,6 +7,10 @@ from dependencies import get_db
 import os
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -18,11 +22,14 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # CORS configuration
+origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+logger.info(f"Allowed CORS origins: {origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
